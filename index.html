@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script>var exports = {};</script>
+    <script src="./Global (Dont Touch)/phaser.js"></script>
+
+</head>
+
+<body>
+
+    <!-- <script type="module" src="./src/Scenes/MainScene.js"></script>
+    <script type="module" src="./src/Scripts/GameManager.js"></script> -->
+    <!-- <script> -->
+    <script type="module">
+            import MainScene from './src/Scenes/MainScene.js';
+            import { GameManager } from './src/Scripts/GameManager.js';
+
+        var config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            scene: MainScene,
+        };
+
+        const game = new Phaser.Game(config);
+
+        game.events.on("GameCreated", () => {
+            new GameManager(game.scene.scenes[0]);
+        });
+
+    </script>
+
+</body>
+
+</html>

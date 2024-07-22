@@ -1,0 +1,92 @@
+{
+    "id": "f4456493-c481-4114-98d1-c7c4ad8d4998",
+    "sceneType": "SCENE",
+    "settings": {
+        "exportClass": true,
+        "preloadPackFiles": [],
+        "createMethodName": "editorCreate",
+        "sceneKey": "MainScene",
+        "compilerOutputLanguage": "TYPE_SCRIPT"
+    },
+    "displayList": [
+        {
+            "type": "Image",
+            "id": "01e68e6d-0305-4f7c-82fd-9428d493c35e",
+            "label": "bg",
+            "scope": "CLASS",
+            "texture": {
+                "key": "bg"
+            },
+            "x": 408,
+            "y": 301,
+            "scaleX": 1.5,
+            "scaleY": 1.7
+        },
+        {
+            "type": "Layer",
+            "id": "6a107d5d-766c-49ed-b3ad-31af6b8d5680",
+            "label": "symbols_layer",
+            "list": [
+                {
+                    "type": "Image",
+                    "id": "e36b0934-23fa-4eab-8b4c-c43901600dff",
+                    "label": "red_ace",
+                    "texture": {
+                        "key": "symbols",
+                        "frame": "symbol_50"
+                    },
+                    "x": 340,
+                    "y": 393,
+                    "scaleX": 0.4,
+                    "scaleY": 0.4
+                },
+                {
+                    "type": "Image",
+                    "id": "dbf42bca-28a5-487a-bbb1-375499869149",
+                    "label": "black_back",
+                    "texture": {
+                        "key": "symbol_back",
+                        "frame": "back_black"
+                    },
+                    "x": 340,
+                    "y": 203,
+                    "scaleX": 1.17,
+                    "scaleY": 1.17
+                },
+                {
+                    "type": "Image",
+                    "id": "5bede23f-08bf-4b32-bc3f-e8d4b5704664",
+                    "label": "red_back",
+                    "texture": {
+                        "key": "symbol_back",
+                        "frame": "back_red"
+                    },
+                    "x": 464.8718390723502,
+                    "y": 393,
+                    "scaleX": 1.17,
+                    "scaleY": 1.17
+                },
+                {
+                    "type": "Image",
+                    "id": "ec86041b-7721-40c2-aa6b-c3e323e31699",
+                    "label": "black_ace",
+                    "texture": {
+                        "key": "symbols",
+                        "frame": "symbol_51"
+                    },
+                    "x": 464.8718390723502,
+                    "y": 203,
+                    "scaleX": 0.4,
+                    "scaleY": 0.4
+                }
+            ]
+        }
+    ],
+    "plainObjects": [],
+    "meta": {
+        "app": "Phaser Editor 2D - Scene Editor",
+        "url": "https://phasereditor2d.com",
+        "contentType": "phasereditor2d.core.scene.SceneContentType",
+        "version": 5
+    }
+}

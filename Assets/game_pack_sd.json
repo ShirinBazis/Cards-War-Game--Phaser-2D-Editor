@@ -1,0 +1,36 @@
+{
+    "section1": {
+        "files": [
+            {
+                "url": "Assets/bg/bg.jpg",
+                "type": "image",
+                "key": "bg"
+            },
+            {
+                "textureURL": "Assets/sprite_fonts/bitmap_font.png",
+                "fontDataURL": "Assets/sprite_fonts/bitmap_font.xml",
+                "type": "bitmapFont",
+                "key": "bitmap_font"
+            },
+            {
+                "type": "multiatlas",
+                "url": "Assets/symbol_back/symbol_back.json",
+                "path": "Assets/symbol_back",
+                "key": "symbol_back"
+            },
+            {
+                "type": "multiatlas",
+                "url": "Assets/symbols/symbols.json",
+                "path": "Assets/symbols",
+                "key": "symbols"
+            }
+        ]
+    },
+    "meta": {
+        "app": "Phaser Editor 2D - Asset Pack Editor",
+        "contentType": "phasereditor2d.pack.core.AssetContentType",
+        "url": "https://phasereditor2d.com",
+        "version": 2,
+        "showAllFilesInBlocks": true
+    }
+}
