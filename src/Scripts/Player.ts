@@ -16,7 +16,7 @@ export class Player {
     }
 
     addCards(cards: Card[]): void {
-        cards.forEach(card => this.deck.push(card));
+        this.deck.push(...cards);
     }
 
     playCard(): Card | undefined {

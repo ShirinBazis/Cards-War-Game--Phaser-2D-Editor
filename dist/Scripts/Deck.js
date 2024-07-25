@@ -10,7 +10,7 @@ export class Deck {
                 const sprite = scene.add.image(0, 0, "symbols", `symbol_${i + 37}`);
                 sprite.setScale(0.4);
                 sprite.setVisible(false);
-                this.cards.push(new Card(i, sprite));
+                this.cards.push(new Card(i, sprite, i + 37));
             }
         }
     }

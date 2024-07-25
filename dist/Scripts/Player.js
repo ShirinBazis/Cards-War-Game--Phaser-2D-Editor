@@ -8,7 +8,7 @@ export class Player {
         this.deck.push(card);
     }
     addCards(cards) {
-        cards.forEach(card => this.deck.push(card));
+        this.deck.push(...cards);
     }
     playCard() {
         return this.deck.shift();

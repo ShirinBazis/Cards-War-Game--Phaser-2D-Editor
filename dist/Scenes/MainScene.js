@@ -11,53 +11,47 @@ import { GameManager, GameState } from '../Scripts/GameManager.js';
 export default class MainScene extends Phaser.Scene {
     constructor() {
         super("MainScene");
-        /* START-USER-CTR-CODE */
-        // Write your code here.
-        /* END-USER-CTR-CODE */
     }
     editorCreate() {
+        this.playerDeckSize = { x: 340, y: 393 };
+        this.aiDeckSize = { x: 464.8718390723502, y: 203 };
         // bg
         const bg = this.add.image(408, 301, "bg");
         bg.scaleX = 1.5;
         bg.scaleY = 1.7;
         // symbols_layer
         const symbols_layer = this.add.layer();
-        // red_ace
-        const red_ace = this.add.image(340, 393, "symbols", "symbol_50");
-        red_ace.scaleX = 0.4;
-        red_ace.scaleY = 0.4;
-        symbols_layer.add(red_ace);
         // black_back
-        const black_back = this.add.image(340, 203, "symbol_back", "back_black");
+        const black_back = this.add.image(this.playerDeckSize.x, this.aiDeckSize.y, "symbol_back", "back_black");
         black_back.scaleX = 1.17;
         black_back.scaleY = 1.17;
         symbols_layer.add(black_back);
         // red_back
-        const red_back = this.add.image(464.8718390723502, 393, "symbol_back", "back_red");
+        const red_back = this.add.image(this.aiDeckSize.x, this.playerDeckSize.y, "symbol_back", "back_red");
         red_back.scaleX = 1.17;
         red_back.scaleY = 1.17;
         symbols_layer.add(red_back);
-        // black_ace
-        const black_ace = this.add.image(464.8718390723502, 203, "symbols", "symbol_51");
-        black_ace.scaleX = 0.4;
-        black_ace.scaleY = 0.4;
-        symbols_layer.add(black_ace);
         this.bg = bg;
         this.events.emit("scene-awake");
-        this.playerDeck = this.add.image(340, 393, "symbol_back", "back_red");
+        this.playerDeck = this.add.image(this.playerDeckSize.x, this.playerDeckSize.y, "symbol_back", "back_red");
         this.playerDeck.setScale(1.17);
-        this.aiDeck = this.add.image(464.8718390723502, 203, "symbol_back", "back_black");
+        this.playerDeck.setVisible(false);
+        this.aiDeck = this.add.image(this.aiDeckSize.x, this.aiDeckSize.y, "symbol_back", "back_black");
         this.aiDeck.setScale(1.17);
+        this.aiDeck.setVisible(false);
     }
-    /* START-USER-CODE */
-    // Write your code here
     preload() {
         this.load.pack("pack", './Assets/game_pack_sd.json');
+        this.load.audio('battle-win', './Assets/sounds/battle-win.wav');
+        this.load.audio('battle-lose', './Assets/sounds/battle-lose.mp3');
+        this.load.audio('war-win', './Assets/sounds/war-win.mp3');
+        this.load.audio('war-lose', './Assets/sounds/war-lose.mp3');
+        this.load.audio('winner', './Assets/sounds/winner.mp3');
+        this.load.audio('loser', './Assets/sounds/loser.mp3');
+        this.load.audio('click', './Assets/sounds/click.wav');
+        this.load.audio('shuffle', './Assets/sounds/shuffle-cards.mp3');
+        this.load.audio('restart', './Assets/sounds/restart.wav');
     }
-    // create() {
-    // 	this.editorCreate();
-    // 	this.game.events.emit("GameCreated");
-    // }
     create() {
         this.editorCreate();
         this.gameManager = new GameManager(this);
@@ -68,51 +62,72 @@ export default class MainScene extends Phaser.Scene {
         this.battleText = this.add.text(400, 200, '', { fontSize: '32px', color: '#fff' })
             .setOrigin(0.5, 5.5)
             .setVisible(false);
-        this.playerDeck.setInteractive()
-            .on('pointerdown', () => this.playTurn());
         this.game.events.emit("GameCreated");
+        // Sounds
+        this.clickSound = this.sound.add('click');
+        this.battleWinSound = this.sound.add('battle-win');
+        this.battleLoseSound = this.sound.add('battle-lose');
+        this.warWinSound = this.sound.add('war-win');
+        this.warLoseSound = this.sound.add('war-lose');
+        this.gameWinSound = this.sound.add('winner');
+        this.gameLoseSound = this.sound.add('loser');
+        this.shuffleSound = this.sound.add('shuffle');
+        this.restartSound = this.sound.add('restart');
     }
-    /* END-USER-CODE */
     startGame() {
         this.gameManager.startGame();
         this.dealButton.setVisible(false);
         this.battleText.setVisible(true);
+        this.playerDeck.setInteractive()
+            .once('pointerdown', () => {
+            this.clickSound.play();
+            this.playTurn();
+        });
     }
     playTurn() {
+        this.battleText.setVisible(false);
+        this.playerDeck.disableInteractive();
         if (this.gameManager.getState() === GameState.BATTLE) {
             this.gameManager.playTurn();
         }
     }
     updateUI(message) {
-        this.battleText.setText(message);
+        this.battleText.setText(message).setVisible(true);
     }
-    dealCards() {
-        const centerX = this.cameras.main.width / 2;
-        const centerY = this.cameras.main.height / 2;
-        for (let i = 0; i < 26; i++) {
-            const card = this.add.image(centerX, centerY, 'card-back').setScale(0.5);
+    dealCardAnimation(startX, startY, frame, targetDeck, index) {
+        return new Promise((resolve) => {
+            const card = this.add.image(startX, startY, "symbol_back", frame).setScale(1.17);
             this.tweens.add({
                 targets: card,
-                x: this.playerDeck.x,
-                y: this.playerDeck.y,
+                x: targetDeck.x,
+                y: targetDeck.y,
                 duration: 300,
-                delay: i * 50,
-                onComplete: () => card.destroy()
+                delay: index * 50,
+                onComplete: () => {
+                    card.destroy();
+                    resolve();
+                }
             });
-            const aiCard = this.add.image(centerX, centerY, 'card-back').setScale(0.5);
-            this.tweens.add({
-                targets: aiCard,
-                x: this.aiDeck.x,
-                y: this.aiDeck.y,
-                duration: 300,
-                delay: i * 50,
-                onComplete: () => aiCard.destroy()
+        });
+    }
+    dealCards() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const centerX = this.cameras.main.width / 2;
+            const centerY = this.cameras.main.height / 2;
+            const animations = [];
+            for (let i = 0; i < 26; i++) {
+                animations.push(this.dealCardAnimation(centerX, centerY, "back_red", this.playerDeck, i));
+                animations.push(this.dealCardAnimation(centerX, centerY, "back_black", this.aiDeck, i));
+            }
+            return Promise.all(animations).then(() => {
+                this.playerDeck.setVisible(true);
+                this.aiDeck.setVisible(true);
             });
-        }
+        });
     }
     revealCard(card, x, y) {
         return new Promise((resolve) => {
-            const cardSprite = card.getSprite().setVisible(true).setPosition(x, y);
+            const cardSprite = this.add.image(x, y, "symbols", `symbol_${card.getSymbolNumber()}`).setScale(0.45);
             this.tweens.add({
                 targets: cardSprite,
                 scaleX: 0,
@@ -120,12 +135,11 @@ export default class MainScene extends Phaser.Scene {
                 onComplete: () => {
                     this.tweens.add({
                         targets: cardSprite,
-                        scaleX: 0.5,
+                        scaleX: 0.45,
                         duration: 250,
                         onComplete: () => {
-                            // Add a delay before resolving the promise
-                            this.time.delayedCall(500, () => {
-                                resolve();
+                            this.time.delayedCall(200, () => {
+                                resolve(cardSprite);
                             });
                         }
                     });
@@ -133,21 +147,16 @@ export default class MainScene extends Phaser.Scene {
             });
         });
     }
-    revealCards(playerCard, aiCard) {
-        // Implement card reveal animation here
-        playerCard.getSprite().setVisible(true).setPosition(340, 393);
-        aiCard.getSprite().setVisible(true).setPosition(464.8718390723502, 203);
-    }
     moveCardsToWinner(winnerDeck, cards) {
         return new Promise((resolve) => {
             let completedCount = 0;
-            cards.forEach((card, index) => {
+            cards.forEach((card) => {
                 this.tweens.add({
                     targets: card,
                     x: winnerDeck.x,
                     y: winnerDeck.y,
-                    duration: 500,
-                    delay: index * 200,
+                    duration: 400,
+                    delay: 100,
                     onComplete: () => {
                         card.destroy();
                         completedCount++;
@@ -159,62 +168,43 @@ export default class MainScene extends Phaser.Scene {
             });
         });
     }
-    showWarAnimation(warCards) {
-        return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
-            const centerX = this.cameras.main.width / 2;
-            const centerY = this.cameras.main.height / 2;
-            // Show "WAR!" text
-            const warText = this.add.text(centerX, centerY - 100, 'WAR!', { fontSize: '64px', color: '#ff0000' })
-                .setOrigin(0.5)
-                .setAlpha(0);
-            // Fade in and out the "WAR!" text
+    showFaceDownCardPair(index, cardArray) {
+        return new Promise((resolve) => {
+            const playerCard = this.add.image(this.playerDeckSize.x, this.playerDeckSize.y - (index * 10), 'symbol_back', 'back_red').setScale(1.17);
+            const aiCard = this.add.image(this.aiDeckSize.x, this.aiDeckSize.y - (index * 10), 'symbol_back', 'back_black').setScale(1.17);
+            cardArray.push(playerCard, aiCard);
             this.tweens.add({
-                targets: warText,
+                targets: [playerCard, aiCard],
                 alpha: 1,
-                duration: 500,
-                yoyo: true,
-                hold: 1000,
-                onComplete: () => warText.destroy()
+                duration: 300,
+                delay: index * 200,
+                onComplete: () => resolve()
             });
-            yield this.delay(2000); // Wait for the text animation
-            // Show face-down cards
+        });
+    }
+    showWarAnimation() {
+        return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+            this.updateUI("War!");
             const faceDownCards = [];
             for (let i = 0; i < 3; i++) {
-                const playerCard = this.add.image(centerX - 100 + i * 50, centerY - 50, 'card-back').setScale(0.4).setAlpha(0);
-                const aiCard = this.add.image(centerX - 100 + i * 50, centerY + 50, 'card-back').setScale(0.4).setAlpha(0);
-                faceDownCards.push(playerCard, aiCard);
-                // Fade in the face-down cards
-                this.tweens.add({
-                    targets: [playerCard, aiCard],
-                    alpha: 1,
-                    duration: 300,
-                    delay: i * 200
-                });
-                yield this.delay(200);
+                yield this.showFaceDownCardPair(i, faceDownCards);
             }
-            yield this.delay(1000); // Wait a bit after all cards are shown
-            // Reveal final war cards
-            const playerFinalCard = warCards[warCards.length - 2];
-            const aiFinalCard = warCards[warCards.length - 1];
-            yield this.revealCard(playerFinalCard, centerX - 50, centerY - 50);
-            yield this.delay(500);
-            yield this.revealCard(aiFinalCard, centerX - 50, centerY + 50);
-            yield this.delay(2000); // Wait for players to see the final cards
-            // Clean up the face-down cards
-            faceDownCards.forEach(card => card.destroy());
-            resolve();
+            yield this.delay(1000);
+            resolve(faceDownCards);
         }));
     }
     showEndGameScreen(playerWon) {
         const centerX = this.cameras.main.width / 2;
         const centerY = this.cameras.main.height / 2;
-        const message = playerWon ? 'You Won!' : 'Try Again';
-        const text = this.add.text(centerX, centerY - 50, message, { fontSize: '48px', color: '#fff' }).setOrigin(0.5);
-        const replayButton = this.add.text(centerX, centerY + 50, 'Play Again', { fontSize: '32px', color: '#fff' })
+        const message = playerWon ? 'You Won!' : 'You Lost :-(';
+        const text = this.add.text(centerX, centerY - 50, message, { fontSize: '60px', color: '#0ff' }).setOrigin(0.5);
+        const replayButton = this.add.text(centerX, centerY + 50, 'Play Again', { fontSize: '32px', color: '#ff0' })
             .setOrigin(0.5)
             .setInteractive()
-            .on('pointerdown', () => this.scene.restart());
-        // Add some animation to the text and button
+            .on('pointerdown', () => {
+            this.restartSound.play();
+            this.scene.restart();
+        });
         this.tweens.add({
             targets: [text, replayButton],
             scaleX: 1.1,
@@ -223,10 +213,10 @@ export default class MainScene extends Phaser.Scene {
             repeat: -1,
             duration: 800
         });
+        playerWon ? this.gameWinSound.play() : this.gameLoseSound.play();
     }
     delay(ms) {
-        return new Promise(resolve => this.time.delayedCall(ms, resolve));
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
-/* END OF COMPILED CODE */
-// You can write more code here
+/* END OF COMPILED CODE */ 
