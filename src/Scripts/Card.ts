@@ -1,23 +1,17 @@
 export class Card {
-    private rank: number;
+    private symbol: number;
     private sprite: Phaser.GameObjects.Image;
-    private symbolNumber: number;
 
-    constructor(rank: number, sprite: Phaser.GameObjects.Image, symbolNumber: number) {
-        this.rank = rank;
+    constructor(rank: number, sprite: Phaser.GameObjects.Image) {
+        this.symbol = rank;
         this.sprite = sprite;
-        this.symbolNumber = symbolNumber;
     }
 
-    getRank(): number {
-        return this.rank;
+    getSymbol(): number {
+        return this.symbol;
     }
 
     getSprite(): Phaser.GameObjects.Image {
         return this.sprite;
-    }
-
-    getSymbolNumber(): number {
-        return this.symbolNumber;
     }
 }

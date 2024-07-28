@@ -1,16 +1,12 @@
 export class Card {
-    constructor(rank, sprite, symbolNumber) {
-        this.rank = rank;
+    constructor(rank, sprite) {
+        this.symbol = rank;
         this.sprite = sprite;
-        this.symbolNumber = symbolNumber;
     }
-    getRank() {
-        return this.rank;
+    getSymbol() {
+        return this.symbol;
     }
     getSprite() {
         return this.sprite;
-    }
-    getSymbolNumber() {
-        return this.symbolNumber;
     }
 }

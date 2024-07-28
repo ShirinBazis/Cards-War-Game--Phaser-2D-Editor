@@ -7,36 +7,43 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { GameManager, GameState } from '../Scripts/GameManager.js';
+import { GameState } from '../Scripts/GameManager.js';
 export default class MainScene extends Phaser.Scene {
     constructor() {
         super("MainScene");
         this.autoPlay = false;
         this.autoPlayInProgress = false;
-        this.turnInProgress = false;
     }
     editorCreate() {
-        this.playerDeckSize = { x: 500, y: 450 };
-        this.aiDeckSize = { x: 300, y: 200 };
+        this.playerDeckSize = { x: 340, y: 393 };
+        this.aiDeckSize = { x: 464.8718390723502, y: 203 };
         // bg
-        this.background = this.add.image(408, 301, "bg").setScale(1.7).setVisible(true);
-        this.warBackground = this.add.image(408, 301, "war").setScale(1.7).setVisible(false);
+        const bg = this.add.image(408, 301, "bg");
+        bg.scaleX = 1.5;
+        bg.scaleY = 1.7;
         // symbols_layer
         const symbols_layer = this.add.layer();
-        // main_deck
-        this.deck = this.add.image(400, 300, "symbol_back", "back_red").setScale(1.1);
-        symbols_layer.add(this.deck);
+        // black_back
+        const black_back = this.add.image(this.playerDeckSize.x, this.aiDeckSize.y, "symbol_back", "back_black");
+        black_back.scaleX = 1.17;
+        black_back.scaleY = 1.17;
+        symbols_layer.add(black_back);
+        // red_back
+        const red_back = this.add.image(this.aiDeckSize.x, this.playerDeckSize.y, "symbol_back", "back_red");
+        red_back.scaleX = 1.17;
+        red_back.scaleY = 1.17;
+        symbols_layer.add(red_back);
+        this.bg = bg;
         this.events.emit("scene-awake");
         this.playerDeck = this.add.image(this.playerDeckSize.x, this.playerDeckSize.y, "symbol_back", "back_red");
-        this.playerDeck.setScale(1.1);
+        this.playerDeck.setScale(1.17);
         this.playerDeck.setVisible(false);
-        this.aiDeck = this.add.image(this.aiDeckSize.x, this.aiDeckSize.y, "symbol_back", "back_red");
-        this.aiDeck.setScale(1.1);
+        this.aiDeck = this.add.image(this.aiDeckSize.x, this.aiDeckSize.y, "symbol_back", "back_black");
+        this.aiDeck.setScale(1.17);
         this.aiDeck.setVisible(false);
     }
     preload() {
         this.load.pack("pack", './Assets/game_pack_sd.json');
-        this.load.image('war', './Assets/bg/war.jpeg');
         this.load.audio('battle-win', './Assets/sounds/battle-win.wav');
         this.load.audio('battle-lose', './Assets/sounds/battle-lose.mp3');
         this.load.audio('war-win', './Assets/sounds/war-win.mp3');
@@ -49,7 +56,7 @@ export default class MainScene extends Phaser.Scene {
     }
     create() {
         this.editorCreate();
-        this.gameManager = new GameManager(this);
+        //this.gameManager = new GameManager(this);
         this.dealButton = this.add.text(400, 300, 'Deal', { fontSize: '32px', color: '#fff' })
             .setOrigin(0.5, 7.5)
             .setInteractive()
@@ -78,18 +85,15 @@ export default class MainScene extends Phaser.Scene {
         this.dealButton.setVisible(false);
         this.battleText.setVisible(true);
         if (!this.autoPlay) {
-            this.enablePlayerInteraction(() => this.playTurn());
+            this.playerDeck.setInteractive()
+                .once('pointerdown', () => {
+                this.clickSound.play();
+                this.playTurn();
+            });
         }
         else {
             this.autoPlayTurn();
         }
-    }
-    enablePlayerInteraction(callback) {
-        this.playerDeck.setInteractive()
-            .once('pointerdown', () => {
-            this.clickSound.play();
-            callback();
-        });
     }
     autoPlayTurn() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -99,31 +103,41 @@ export default class MainScene extends Phaser.Scene {
             this.playerDeck.disableInteractive();
             while (this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
                 yield this.gameManager.playTurn();
-            }
-            if (!this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
-                this.enablePlayerInteraction(() => this.playTurn());
+                if (!this.autoPlay)
+                    break;
             }
             this.autoPlayInProgress = false;
+            // if (!this.autoPlay) {
+            // 	this.playTurn();
+            // this.playerDeck.setInteractive()
+            // 	.once('pointerdown', () => {
+            // 		this.clickSound.play();
+            // 		this.playTurn();
+            // 	});
+            //}
         });
     }
     playTurn() {
         return __awaiter(this, void 0, void 0, function* () {
-            if (this.turnInProgress)
-                return;
-            this.turnInProgress = true;
             this.battleText.setVisible(false);
             this.playerDeck.disableInteractive();
             if (this.gameManager.getState() === GameState.BATTLE) {
-                yield this.gameManager.playTurn();
-                //}
-                if (!this.autoPlay) {
-                    this.enablePlayerInteraction(() => this.playTurn());
-                }
                 if (this.autoPlay) {
-                    yield this.autoPlayTurn();
+                    //this.autoPlayTurn();
+                    return;
+                }
+                else {
+                    yield this.gameManager.playTurn();
                 }
             }
-            this.turnInProgress = false;
+            if (!this.autoPlay) {
+                this.playerDeck.setInteractive()
+                    .once('pointerdown', () => {
+                    this.clickSound.play();
+                    this.playTurn();
+                });
+            }
+            console.log(this.autoPlay);
         });
     }
     updateUI(message) {
@@ -131,7 +145,7 @@ export default class MainScene extends Phaser.Scene {
     }
     dealCardAnimation(startX, startY, frame, targetDeck, index) {
         return new Promise((resolve) => {
-            const card = this.add.image(startX, startY, "symbol_back", frame).setScale(1.1);
+            const card = this.add.image(startX, startY, "symbol_back", frame).setScale(1.17);
             this.tweens.add({
                 targets: card,
                 x: targetDeck.x,
@@ -152,9 +166,8 @@ export default class MainScene extends Phaser.Scene {
             const animations = [];
             for (let i = 0; i < 26; i++) {
                 animations.push(this.dealCardAnimation(centerX, centerY, "back_red", this.playerDeck, i));
-                animations.push(this.dealCardAnimation(centerX, centerY, "back_red", this.aiDeck, i));
+                animations.push(this.dealCardAnimation(centerX, centerY, "back_black", this.aiDeck, i));
             }
-            this.deck.setVisible(false);
             return Promise.all(animations).then(() => {
                 this.playerDeck.setVisible(true);
                 this.aiDeck.setVisible(true);
@@ -163,7 +176,7 @@ export default class MainScene extends Phaser.Scene {
     }
     revealCard(card, x, y) {
         return new Promise((resolve) => {
-            const cardSprite = this.add.image(x, y, "symbols", `symbol_${card.getSymbol()}`).setScale(0.4);
+            const cardSprite = this.add.image(x, y, "symbols", `symbol_${card.getSymbol()}`).setScale(0.45);
             this.tweens.add({
                 targets: cardSprite,
                 scaleX: 0,
@@ -171,7 +184,7 @@ export default class MainScene extends Phaser.Scene {
                 onComplete: () => {
                     this.tweens.add({
                         targets: cardSprite,
-                        scaleX: 0.4,
+                        scaleX: 0.45,
                         duration: 250,
                         onComplete: () => {
                             this.time.delayedCall(200, () => {
@@ -204,76 +217,30 @@ export default class MainScene extends Phaser.Scene {
             });
         });
     }
-    toggleBackground(isWar) {
-        this.background.setVisible(!isWar);
-        this.warBackground.setVisible(isWar);
-    }
-    putAIBackCard(i, isPlayer = false) {
+    showFaceDownCardPair(index, cardArray) {
         return new Promise((resolve) => {
-            const aiCard = isPlayer ? this.add.image(this.playerDeckSize.x, this.playerDeckSize.y - (i * 10), 'symbol_back', 'back_red').setScale(1.1)
-                : this.add.image(this.aiDeckSize.x, this.aiDeckSize.y - (i * 10), 'symbol_back', 'back_red').setScale(1.1);
+            const playerCard = this.add.image(this.playerDeckSize.x, this.playerDeckSize.y - (index * 10), 'symbol_back', 'back_red').setScale(1.17);
+            const aiCard = this.add.image(this.aiDeckSize.x, this.aiDeckSize.y - (index * 10), 'symbol_back', 'back_black').setScale(1.17);
+            cardArray.push(playerCard, aiCard);
             this.tweens.add({
-                targets: aiCard,
+                targets: [playerCard, aiCard],
                 alpha: 1,
                 duration: 300,
-                delay: i * 300,
-                onComplete: () => resolve(aiCard)
+                delay: index * 200,
+                onComplete: () => resolve()
             });
         });
     }
-    putPlayerBackCard(index) {
-        return new Promise((resolve) => {
-            const playerCard = this.add.image(this.playerDeckSize.x, this.playerDeckSize.y - (index * 10), 'symbol_back', 'back_red').setScale(1.1);
-            this.tweens.add({
-                targets: playerCard,
-                alpha: 1,
-                duration: 300,
-                delay: 0,
-                onComplete: () => resolve(playerCard)
-            });
-        });
-    }
-    showWarAnimation(warCards, sprites) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
-                if (this.autoPlay) {
-                    for (let i = 0; i < 3; i++) {
-                        const playerSprite = yield this.putAIBackCard(i, true);
-                        sprites.push(playerSprite);
-                    }
-                    yield this.delay(300);
-                    for (let i = 0; i < 3; i++) {
-                        const aiSprite = yield this.putAIBackCard(i);
-                        sprites.push(aiSprite);
-                    }
-                    yield this.gameManager.WarBattle(warCards, sprites);
-                    resolve(sprites);
-                }
-                else {
-                    for (let i = 0; i < 3; i++) {
-                        yield new Promise((res) => {
-                            this.enablePlayerInteraction(() => __awaiter(this, void 0, void 0, function* () {
-                                this.clickSound.play();
-                                const sprite = yield this.putPlayerBackCard(i);
-                                sprites.push(sprite);
-                                if (i === 2) {
-                                    this.playerDeck.disableInteractive();
-                                    for (let i = 0; i < 3; i++) {
-                                        const sprite = yield this.putAIBackCard(i);
-                                        sprites.push(sprite);
-                                    }
-                                    yield this.gameManager.WarBattle(warCards, sprites);
-                                    res(sprites); // Resolve after the final card
-                                }
-                                else {
-                                    res(sprites);
-                                }
-                            }));
-                        });
-                    }
-                }
-            }));
-        });
+    showWarAnimation() {
+        return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+            this.updateUI("War!");
+            const faceDownCards = [];
+            for (let i = 0; i < 3; i++) {
+                yield this.showFaceDownCardPair(i, faceDownCards);
+            }
+            yield this.delay(1000);
+            resolve(faceDownCards);
+        }));
     }
     showEndGameScreen(playerWon) {
         const centerX = this.cameras.main.width / 2;
@@ -316,25 +283,35 @@ export default class MainScene extends Phaser.Scene {
     updateAutoPlayButton() {
         this.autoPlayButton.clear();
         if (this.autoPlay) {
-            this.autoPlayButton.fillStyle(0x00ff00, 1); // Red color
+            this.autoPlayButton.fillStyle(0xff0000, 1); // Red color
             this.autoPlayButton.fillCircle(0, 0, 40);
-            this.autoPlayButtonText.setText('TURN OFF');
+            this.autoPlayButtonText.setText('OFF');
         }
         else {
-            this.autoPlayButton.fillStyle(0xA9A9A9, 1); // Gray color
+            this.autoPlayButton.fillStyle(0x00ff00, 1); // Green color
             this.autoPlayButton.fillCircle(0, 0, 40);
-            this.autoPlayButtonText.setText('AUTO PLAY');
+            this.autoPlayButtonText.setText('AUTO-PLAY');
         }
     }
     toggleAutoPlay() {
         this.autoPlay = !this.autoPlay;
         this.updateAutoPlayButton();
-        if (!this.turnInProgress && !this.autoPlayInProgress && this.gameManager.getState() === GameState.BATTLE) {
-            if (this.autoPlay) {
+        if (this.gameManager.getState() === GameState.BATTLE) {
+            if (this.autoPlay && !this.autoPlayInProgress) {
                 this.autoPlayTurn();
             }
-            else if (!this.autoPlay) {
-                this.enablePlayerInteraction(() => this.playTurn());
+            else {
+                //if (!this.autoPlayInProgress) {
+                // this.playerDeck.setInteractive()
+                // 	.once('pointerdown', () => {
+                // 		this.clickSound.play();
+                this.playTurn();
+                //});
+                //}
+                // this.playerDeck.setInteractive();
+                // if (this.gameManager.isPlayerTurn() && !this.autoPlayInProgress) {
+                //	this.playTurn();
+                //}
             }
         }
     }

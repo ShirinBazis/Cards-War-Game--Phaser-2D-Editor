@@ -5,13 +5,11 @@ export class Deck {
         this.initialize(scene);
     }
     initialize(scene) {
-        for (let i = 1; i <= 13; i++) {
-            for (let j = 0; j < 4; j++) {
-                const sprite = scene.add.image(0, 0, "symbols", `symbol_${i + 37}`);
-                sprite.setScale(0.4);
-                sprite.setVisible(false);
-                this.cards.push(new Card(i, sprite, i + 37));
-            }
+        for (let i = 0; i < 52; i++) {
+            const sprite = scene.add.image(0, 0, "symbols", `symbol_${i}`);
+            sprite.setScale(0.4);
+            sprite.setVisible(false);
+            this.cards.push(new Card(i, sprite));
         }
     }
     shuffle() {
