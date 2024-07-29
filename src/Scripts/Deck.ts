@@ -10,10 +10,10 @@ export class Deck {
 
     private initialize(scene: Phaser.Scene): void {
         for (let i = 0; i < 52; i++) {
-                const sprite = scene.add.image(0, 0, "symbols", `symbol_${i}`);
-                sprite.setScale(0.4);
-                sprite.setVisible(false);
-                this.cards.push(new Card(i, sprite));
+            const sprite = scene.add.image(0, 0, "symbols", `symbol_${i}`);
+            sprite.setScale(0.4);
+            sprite.setVisible(false);
+            this.cards.push(new Card(i, sprite));
         }
     }
 

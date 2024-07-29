@@ -23,7 +23,7 @@ export class Player {
         return this.deck.shift();
     }
 
-    getDeckSize(): number {
+    getDeckLength(): number {
         return this.deck.length;
     }
 
