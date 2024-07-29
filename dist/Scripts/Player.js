@@ -13,7 +13,7 @@ export class Player {
     playCard() {
         return this.deck.shift();
     }
-    getDeckSize() {
+    getDeckLength() {
         return this.deck.length;
     }
     isAIPlayer() {
