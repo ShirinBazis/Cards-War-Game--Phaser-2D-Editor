@@ -34,17 +34,15 @@ export class GameManager {
         }
     }
     startGame() {
-        return __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
-                this.scene.shuffleSound.play();
-                this.deck.shuffle();
-                this.dealCards();
-                yield this.scene.dealCards();
-                this.state = GameState.BATTLE;
-                this.scene.updateUI("Battle!");
-                resolve();
-            }));
-        });
+        return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+            this.scene.shuffleSound.play();
+            this.deck.shuffle();
+            this.dealCards();
+            yield this.scene.dealCards();
+            this.state = GameState.BATTLE;
+            this.scene.updateUI("Battle!");
+            resolve();
+        }));
     }
     getState() {
         return this.state;
@@ -53,42 +51,46 @@ export class GameManager {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
     playTurn() {
-        return __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
-                if (this.state !== GameState.BATTLE) {
-                    resolve();
-                    return;
-                }
-                const playerCard = this.player.playCard();
-                const aiCard = this.aiPlayer.playCard();
-                if (!playerCard || !aiCard) {
-                    yield this.endGame();
-                    resolve();
-                    return;
-                }
-                const playerCardSprite = yield this.scene.revealCard(playerCard, this.scene.playerDeckSize.x, this.scene.playerDeckSize.y);
-                const aiCardSprite = yield this.scene.revealCard(aiCard, this.scene.aiDeckSize.x, this.scene.aiDeckSize.y);
-                yield this.delay(500);
-                const playerRank = Math.floor(playerCard.getSymbol() / 4);
-                const aiRank = Math.floor(aiCard.getSymbol() / 4);
-                if (playerRank > aiRank) {
-                    this.scene.updateUI("You won the battle!");
-                    this.scene.battleWinSound.play();
-                    this.player.addCards([playerCard, aiCard]);
-                    yield this.scene.moveCardsToWinner(this.scene.playerDeck, [playerCardSprite, aiCardSprite]);
-                }
-                else if (playerRank < aiRank) {
-                    this.scene.updateUI("AI won the battle!");
-                    this.scene.battleLoseSound.play();
-                    this.aiPlayer.addCards([playerCard, aiCard]);
-                    yield this.scene.moveCardsToWinner(this.scene.aiDeck, [playerCardSprite, aiCardSprite]);
-                }
-                else {
-                    yield this.startWar([playerCard, aiCard], [playerCardSprite, aiCardSprite]);
-                }
+        return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+            if (this.state !== GameState.BATTLE) {
                 resolve();
-            }));
-        });
+                return;
+            }
+            const playerCard = this.player.playCard();
+            const aiCard = this.aiPlayer.playCard();
+            // If one of the players has no cards
+            if (!playerCard || !aiCard) {
+                yield this.endGame();
+                resolve();
+                return;
+            }
+            const playerCardSprite = yield this.scene.revealCard(playerCard, this.scene.playerDeckSize.x, this.scene.playerDeckSize.y);
+            const aiCardSprite = yield this.scene.revealCard(aiCard, this.scene.aiDeckSize.x, this.scene.aiDeckSize.y);
+            yield this.delay(500);
+            const playerRank = Math.floor(playerCard.getSymbol() / 4);
+            const aiRank = Math.floor(aiCard.getSymbol() / 4);
+            // Player wins
+            if (playerRank > aiRank) {
+                this.scene.updateUI("You won the battle!");
+                this.scene.battleWinSound.play();
+                this.player.addCards([playerCard, aiCard]);
+                yield this.scene.moveCardsToWinner(this.scene.playerDeck, [playerCardSprite, aiCardSprite]);
+                resolve();
+            }
+            // AI wins
+            else if (playerRank < aiRank) {
+                this.scene.updateUI("AI won the battle!");
+                this.scene.battleLoseSound.play();
+                this.aiPlayer.addCards([playerCard, aiCard]);
+                yield this.scene.moveCardsToWinner(this.scene.aiDeck, [playerCardSprite, aiCardSprite]);
+                resolve();
+            }
+            // War
+            else {
+                yield this.startWar([playerCard, aiCard], [playerCardSprite, aiCardSprite]);
+                resolve();
+            }
+        }));
     }
     startWar(warCards, sprites) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -110,40 +112,39 @@ export class GameManager {
         });
     }
     WarBattle(warCards, sprites) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve) => {
-                let isRevealing = false;
-                const autoRevealCards = () => __awaiter(this, void 0, void 0, function* () {
-                    this.scene.warText.setVisible(false);
-                    if (isRevealing)
-                        return;
-                    isRevealing = true;
-                    this.scene.playerDeck.disableInteractive();
-                    yield this.revealFinalWarCards(warCards, sprites);
-                    resolve();
-                });
-                const checkAutoPlay = () => {
-                    if (this.scene.autoPlay) {
-                        autoRevealCards();
-                    }
-                    else {
-                        this.scene.playerDeck.disableInteractive();
-                        this.scene.warText.setText("Add final card").setVisible(true);
-                        this.scene.enablePlayerInteraction(() => {
-                            autoRevealCards();
-                        });
-                    }
-                };
-                checkAutoPlay();
-                // Interval to check for autoPlay changes, every 100ms
-                const intervalId = setInterval(() => {
-                    if (this.scene.autoPlay && !isRevealing) {
-                        clearInterval(intervalId);
-                        checkAutoPlay();
-                    }
-                }, 100);
+        return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+            let isRevealing = false;
+            const autoRevealCards = () => __awaiter(this, void 0, void 0, function* () {
+                this.scene.warText.setVisible(false);
+                if (isRevealing)
+                    return;
+                isRevealing = true;
+                this.scene.playerDeck.disableInteractive();
+                yield this.revealFinalWarCards(warCards, sprites);
+                resolve();
             });
-        });
+            const checkAutoPlay = () => __awaiter(this, void 0, void 0, function* () {
+                if (this.scene.autoPlay) {
+                    yield autoRevealCards();
+                }
+                else {
+                    this.scene.playerDeck.disableInteractive();
+                    this.scene.warText.setText("Add final card").setVisible(true);
+                    this.scene.enablePlayerInteraction(() => __awaiter(this, void 0, void 0, function* () {
+                        yield autoRevealCards();
+                    }));
+                }
+            });
+            yield checkAutoPlay();
+            // Interval to check for autoPlay changes, every 100ms
+            const intervalId = setInterval(() => __awaiter(this, void 0, void 0, function* () {
+                if (this.scene.autoPlay && !isRevealing) {
+                    clearInterval(intervalId);
+                    sprites.forEach(sprite => sprite.destroy());
+                    yield checkAutoPlay();
+                }
+            }), 100);
+        }));
     }
     revealFinalWarCards(warCards, sprites) {
         return __awaiter(this, void 0, void 0, function* () {

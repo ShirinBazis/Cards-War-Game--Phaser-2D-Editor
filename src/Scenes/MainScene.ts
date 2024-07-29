@@ -89,11 +89,11 @@ export default class MainScene extends Phaser.Scene {
 		this.battleText = this.add.text(400, 200, '', { fontSize: '32px', color: '#fff' })
 			.setOrigin(0.5, 5.5)
 			.setVisible(false);
-			this.currentCardsText = this.add.text(580, 100, '', { 
-				font: 'bold 18px Arial',  
-				color: '#000000',  
-			}).setVisible(false);
-			
+		this.currentCardsText = this.add.text(580, 100, '', {
+			font: 'bold 18px Arial',
+			color: '#000000',
+		}).setVisible(false);
+
 		this.playerDeck = this.add.image(this.playerDeckSize.x, this.playerDeckSize.y, "symbol_back", "back_red");
 		this.playerDeck.setScale(1.1);
 		this.playerDeck.setVisible(false);
@@ -103,6 +103,7 @@ export default class MainScene extends Phaser.Scene {
 		this.aiDeck.setVisible(false);
 
 		this.game.events.emit("GameCreated");
+
 		// Sounds
 		this.clickSound = this.sound.add('click');
 		this.battleWinSound = this.sound.add('battle-win');
@@ -226,9 +227,11 @@ export default class MainScene extends Phaser.Scene {
 		if (this.autoPlayInProgress) return;
 		this.autoPlayInProgress = true;
 		this.playerDeck.disableInteractive();
+		// Auto play loop
 		while (this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
 			await this.gameManager.playTurn();
 		}
+		// Auto play off
 		if (!this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
 			this.enablePlayerInteraction(() => this.playTurn());
 		}
@@ -243,9 +246,11 @@ export default class MainScene extends Phaser.Scene {
 		if (this.gameManager.getState() === GameState.BATTLE) {
 			await this.gameManager.playTurn();
 		}
+		// Auto play off
 		if (!this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
 			this.enablePlayerInteraction(() => this.playTurn());
 		}
+		// Auto play on
 		if (this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
 			await this.autoPlayTurn();
 		}
@@ -257,7 +262,7 @@ export default class MainScene extends Phaser.Scene {
 		this.warBackground.setVisible(isWar);
 	}
 
-	putBackCard(i: number, isPlayer: boolean = false): Promise<Phaser.GameObjects.Image> {
+	private putBackCard(i: number, isPlayer: boolean = false): Promise<Phaser.GameObjects.Image> {
 		return new Promise((resolve) => {
 			const card = isPlayer ? this.add.image(this.playerDeckSize.x, this.playerDeckSize.y - (i * 10), 'symbol_back', 'back_red').setScale(1.1)
 				: this.add.image(this.aiDeckSize.x, this.aiDeckSize.y - (i * 10), 'symbol_back', 'back_red').setScale(1.1);
@@ -271,7 +276,7 @@ export default class MainScene extends Phaser.Scene {
 		});
 	}
 
-	async showWarAnimation(warCards: Card[], sprites: Phaser.GameObjects.Image[]): Promise<Phaser.GameObjects.Image[]> {
+	showWarAnimation(warCards: Card[], sprites: Phaser.GameObjects.Image[]): Promise<Phaser.GameObjects.Image[]> {
 		return new Promise(async (resolve) => {
 			this.warSound.play()
 			this.warText = this.add.text(412, 550, '', { font: '18px Arial', color: '#ff0' }).setVisible(false).setOrigin(0.5);
@@ -369,11 +374,11 @@ export default class MainScene extends Phaser.Scene {
 	private updateAutoPlayButton(): void {
 		this.autoPlayButton.clear();
 		if (this.autoPlay) {
-			this.autoPlayButton.fillStyle(0x00ff00, 1);  // Red color
+			this.autoPlayButton.fillStyle(0x00ff00, 1);  // Red
 			this.autoPlayButton.fillCircle(0, 0, 40);
 			this.autoPlayButtonText.setText('TURN OFF');
 		} else {
-			this.autoPlayButton.fillStyle(0xA9A9A9, 1);  // Grey color
+			this.autoPlayButton.fillStyle(0xA9A9A9, 1);  // Grey
 			this.autoPlayButton.fillCircle(0, 0, 40);
 			this.autoPlayButtonText.setText('AUTO PLAY');
 		}
@@ -382,6 +387,7 @@ export default class MainScene extends Phaser.Scene {
 	private toggleAutoPlay(): void {
 		this.autoPlay = !this.autoPlay;
 		this.updateAutoPlayButton();
+		// Only if it's not in the middle of other process- turn the button
 		if (!this.turnInProgress && !this.autoPlayInProgress && this.gameManager.getState() === GameState.BATTLE) {
 			if (this.autoPlay) {
 				this.autoPlayTurn();
@@ -416,6 +422,7 @@ export default class MainScene extends Phaser.Scene {
 			}).on('pointerout', () => {
 				this.game.canvas.classList.remove('pointer-cursor');
 			});
+		// Animation
 		this.tweens.add({
 			targets: [text, replayButton],
 			scaleX: 1.1,

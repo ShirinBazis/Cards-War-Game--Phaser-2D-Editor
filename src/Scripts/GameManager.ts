@@ -35,7 +35,7 @@ export class GameManager {
         }
     }
 
-    async startGame(): Promise<void> {
+    startGame(): Promise<void> {
         return new Promise(async (resolve) => {
             this.scene.shuffleSound.play();
             this.deck.shuffle();
@@ -55,7 +55,7 @@ export class GameManager {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    async playTurn(): Promise<void> {
+    playTurn(): Promise<void> {
         return new Promise(async (resolve) => {
             if (this.state !== GameState.BATTLE) {
                 resolve();
@@ -63,6 +63,7 @@ export class GameManager {
             }
             const playerCard = this.player.playCard();
             const aiCard = this.aiPlayer.playCard();
+            // If one of the players has no cards
             if (!playerCard || !aiCard) {
                 await this.endGame();
                 resolve();
@@ -73,26 +74,31 @@ export class GameManager {
             await this.delay(500);
             const playerRank = Math.floor(playerCard.getSymbol() / 4);
             const aiRank = Math.floor(aiCard.getSymbol() / 4);
+            // Player wins
             if (playerRank > aiRank) {
                 this.scene.updateUI("You won the battle!");
                 this.scene.battleWinSound.play();
                 this.player.addCards([playerCard, aiCard]);
                 await this.scene.moveCardsToWinner(this.scene.playerDeck, [playerCardSprite, aiCardSprite]);
+                resolve();
             }
+            // AI wins
             else if (playerRank < aiRank) {
                 this.scene.updateUI("AI won the battle!");
                 this.scene.battleLoseSound.play();
                 this.aiPlayer.addCards([playerCard, aiCard]);
                 await this.scene.moveCardsToWinner(this.scene.aiDeck, [playerCardSprite, aiCardSprite]);
+                resolve();
             }
+            // War
             else {
                 await this.startWar([playerCard, aiCard], [playerCardSprite, aiCardSprite]);
+                resolve();
             }
-            resolve();
         });
     }
 
-    async startWar(warCards: Card[], sprites: Phaser.GameObjects.Image[]): Promise<void> {
+    private async startWar(warCards: Card[], sprites: Phaser.GameObjects.Image[]): Promise<void> {
         this.state = GameState.WAR;
         if (this.player.getDeckLength() < 4 || this.aiPlayer.getDeckLength() < 4) {
             this.scene.updateUI("Not enough cards for a war")
@@ -110,8 +116,8 @@ export class GameManager {
         await this.scene.showWarAnimation(warCards, sprites);
     }
 
-    async WarBattle(warCards: Card[], sprites: Phaser.GameObjects.Image[]): Promise<void> {
-        return new Promise<void>((resolve) => {
+    WarBattle(warCards: Card[], sprites: Phaser.GameObjects.Image[]): Promise<void> {
+        return new Promise<void>(async (resolve) => {
             let isRevealing = false;
             const autoRevealCards = async () => {
                 this.scene.warText.setVisible(false);
@@ -121,23 +127,24 @@ export class GameManager {
                 await this.revealFinalWarCards(warCards, sprites);
                 resolve();
             };
-            const checkAutoPlay = () => {
+            const checkAutoPlay = async () => {
                 if (this.scene.autoPlay) {
-                    autoRevealCards();
+                    await autoRevealCards();
                 } else {
                     this.scene.playerDeck.disableInteractive();
                     this.scene.warText.setText("Add final card").setVisible(true);
-                    this.scene.enablePlayerInteraction(() => {
-                        autoRevealCards();
+                    this.scene.enablePlayerInteraction(async () => {
+                        await autoRevealCards();
                     });
                 }
             };
-            checkAutoPlay();
+            await checkAutoPlay();
             // Interval to check for autoPlay changes, every 100ms
-            const intervalId = setInterval(() => {
+            const intervalId = setInterval(async () => {
                 if (this.scene.autoPlay && !isRevealing) {
                     clearInterval(intervalId);
-                    checkAutoPlay();
+                    sprites.forEach(sprite => sprite.destroy());
+                    await checkAutoPlay();
                 }
             }, 100);
         });

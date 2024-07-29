@@ -190,9 +190,11 @@ export default class MainScene extends Phaser.Scene {
                 return;
             this.autoPlayInProgress = true;
             this.playerDeck.disableInteractive();
+            // Auto play loop
             while (this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
                 yield this.gameManager.playTurn();
             }
+            // Auto play off
             if (!this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
                 this.enablePlayerInteraction(() => this.playTurn());
             }
@@ -209,9 +211,11 @@ export default class MainScene extends Phaser.Scene {
             if (this.gameManager.getState() === GameState.BATTLE) {
                 yield this.gameManager.playTurn();
             }
+            // Auto play off
             if (!this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
                 this.enablePlayerInteraction(() => this.playTurn());
             }
+            // Auto play on
             if (this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
                 yield this.autoPlayTurn();
             }
@@ -236,68 +240,66 @@ export default class MainScene extends Phaser.Scene {
         });
     }
     showWarAnimation(warCards, sprites) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
-                this.warSound.play();
-                this.warText = this.add.text(412, 550, '', { font: '18px Arial', color: '#ff0' }).setVisible(false).setOrigin(0.5);
-                this.updateUI("War!");
-                this.toggleBackground(true);
-                // Player cards
-                for (let i = 0; i < 3; i++) {
-                    yield new Promise((res) => {
-                        let isChecking = false;
-                        if (this.autoPlay) {
-                            this.warText.setVisible(false);
-                            this.putBackCard(i, true).then(sprite => {
-                                sprites.push(sprite);
-                                res();
-                            });
-                        }
-                        else {
-                            const checkAutoPlay = () => {
-                                if (isChecking)
-                                    return;
-                                isChecking = true;
-                                if (this.autoPlay) {
-                                    this.warText.setVisible(false);
-                                    this.playerDeck.disableInteractive();
-                                    this.putBackCard(i, true).then(sprite => {
-                                        sprites.push(sprite);
-                                        res();
-                                    });
-                                }
-                                else {
-                                    this.warText.setText(`Add ${3 - i} hidden cards`).setVisible(true);
-                                    this.enablePlayerInteraction(() => __awaiter(this, void 0, void 0, function* () {
-                                        const sprite = yield this.putBackCard(i, true);
-                                        sprites.push(sprite);
-                                        res();
-                                    }));
-                                }
-                                isChecking = false;
-                            };
-                            checkAutoPlay();
-                            // Interval to check for autoPlay changes, every 100ms
-                            const intervalId = setInterval(() => {
-                                if (this.autoPlay && !isChecking) {
-                                    clearInterval(intervalId);
-                                    checkAutoPlay();
-                                }
-                            }, 100);
-                        }
-                    });
-                }
-                this.warText.setVisible(false);
-                // AI cards
-                this.playerDeck.disableInteractive();
-                for (let i = 0; i < 3; i++) {
-                    const sprite = yield this.putBackCard(i);
-                    sprites.push(sprite);
-                }
-                yield this.gameManager.WarBattle(warCards, sprites);
-                resolve(sprites);
-            }));
-        });
+        return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+            this.warSound.play();
+            this.warText = this.add.text(412, 550, '', { font: '18px Arial', color: '#ff0' }).setVisible(false).setOrigin(0.5);
+            this.updateUI("War!");
+            this.toggleBackground(true);
+            // Player cards
+            for (let i = 0; i < 3; i++) {
+                yield new Promise((res) => {
+                    let isChecking = false;
+                    if (this.autoPlay) {
+                        this.warText.setVisible(false);
+                        this.putBackCard(i, true).then(sprite => {
+                            sprites.push(sprite);
+                            res();
+                        });
+                    }
+                    else {
+                        const checkAutoPlay = () => {
+                            if (isChecking)
+                                return;
+                            isChecking = true;
+                            if (this.autoPlay) {
+                                this.warText.setVisible(false);
+                                this.playerDeck.disableInteractive();
+                                this.putBackCard(i, true).then(sprite => {
+                                    sprites.push(sprite);
+                                    res();
+                                });
+                            }
+                            else {
+                                this.warText.setText(`Add ${3 - i} hidden cards`).setVisible(true);
+                                this.enablePlayerInteraction(() => __awaiter(this, void 0, void 0, function* () {
+                                    const sprite = yield this.putBackCard(i, true);
+                                    sprites.push(sprite);
+                                    res();
+                                }));
+                            }
+                            isChecking = false;
+                        };
+                        checkAutoPlay();
+                        // Interval to check for autoPlay changes, every 100ms
+                        const intervalId = setInterval(() => {
+                            if (this.autoPlay && !isChecking) {
+                                clearInterval(intervalId);
+                                checkAutoPlay();
+                            }
+                        }, 100);
+                    }
+                });
+            }
+            this.warText.setVisible(false);
+            // AI cards
+            this.playerDeck.disableInteractive();
+            for (let i = 0; i < 3; i++) {
+                const sprite = yield this.putBackCard(i);
+                sprites.push(sprite);
+            }
+            yield this.gameManager.WarBattle(warCards, sprites);
+            resolve(sprites);
+        }));
     }
     showWarResult(winner) {
         const playerWinPhrases = [
@@ -335,12 +337,12 @@ export default class MainScene extends Phaser.Scene {
     updateAutoPlayButton() {
         this.autoPlayButton.clear();
         if (this.autoPlay) {
-            this.autoPlayButton.fillStyle(0x00ff00, 1); // Red color
+            this.autoPlayButton.fillStyle(0x00ff00, 1); // Red
             this.autoPlayButton.fillCircle(0, 0, 40);
             this.autoPlayButtonText.setText('TURN OFF');
         }
         else {
-            this.autoPlayButton.fillStyle(0xA9A9A9, 1); // Grey color
+            this.autoPlayButton.fillStyle(0xA9A9A9, 1); // Grey
             this.autoPlayButton.fillCircle(0, 0, 40);
             this.autoPlayButtonText.setText('AUTO PLAY');
         }
@@ -348,6 +350,7 @@ export default class MainScene extends Phaser.Scene {
     toggleAutoPlay() {
         this.autoPlay = !this.autoPlay;
         this.updateAutoPlayButton();
+        // Only if it's not in the middle of other process- turn the button
         if (!this.turnInProgress && !this.autoPlayInProgress && this.gameManager.getState() === GameState.BATTLE) {
             if (this.autoPlay) {
                 this.autoPlayTurn();
@@ -383,6 +386,7 @@ export default class MainScene extends Phaser.Scene {
         }).on('pointerout', () => {
             this.game.canvas.classList.remove('pointer-cursor');
         });
+        // Animation
         this.tweens.add({
             targets: [text, replayButton],
             scaleX: 1.1,
