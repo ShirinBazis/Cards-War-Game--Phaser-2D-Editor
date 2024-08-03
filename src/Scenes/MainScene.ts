@@ -5,7 +5,7 @@ import { Card } from '../Scripts/Card.js';
 import { Sound } from '../Scripts/Sound.js';
 
 
-interface DeckSize {
+type DeckSize = {
 	x: number;
 	y: number;
 }
