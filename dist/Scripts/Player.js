@@ -1,8 +1,6 @@
 export class Player {
-    constructor(isAI, deckSprite) {
+    constructor() {
         this.deck = [];
-        this.isAI = isAI;
-        this.deckSprite = deckSprite;
     }
     addCard(card) {
         this.deck.push(card);
@@ -15,11 +13,5 @@ export class Player {
     }
     getDeckLength() {
         return this.deck.length;
-    }
-    isAIPlayer() {
-        return this.isAI;
-    }
-    getDeckSprite() {
-        return this.deckSprite;
     }
 }
