@@ -1,7 +1,9 @@
 /// <reference path="../../node_modules/phaser/types/phaser.d.ts"/>
 /* START OF COMPILED CODE */
-import { Card } from '../Scripts/Card.js';
 import { GameManager, GameState } from '../Scripts/GameManager.js';
+import { Card } from '../Scripts/Card.js';
+import { Sound } from '../Scripts/Sound.js';
+
 
 interface DeckSize {
 	x: number;
@@ -10,67 +12,71 @@ interface DeckSize {
 
 export default class MainScene extends Phaser.Scene {
 	private gameManager!: GameManager;
+	private centerX: number = 0;
+	private centerY: number = 0;
+	private deck!: Phaser.GameObjects.Image;
+	private background!: Phaser.GameObjects.Image;
 	private dealButton!: Phaser.GameObjects.Text;
 	private battleText!: Phaser.GameObjects.Text;
 	aiDeck!: Phaser.GameObjects.Image;
 	playerDeck!: Phaser.GameObjects.Image;
-	private deck!: Phaser.GameObjects.Image;
-	private background!: Phaser.GameObjects.Image;
+	private playerDeckSize!: DeckSize;
+	private aiDeckSize!: DeckSize;
 	private warBackground!: Phaser.GameObjects.Image;
-	playerDeckSize!: DeckSize;
-	aiDeckSize!: DeckSize;
-	warText!: Phaser.GameObjects.Text;
-	private currentCardsText!: Phaser.GameObjects.Text;
-
-	private clickSound!: Phaser.Sound.BaseSound;
-	battleWinSound!: Phaser.Sound.BaseSound;
-	battleLoseSound!: Phaser.Sound.BaseSound;
-	private warSound!: Phaser.Sound.BaseSound;
-	private warWinSound!: Phaser.Sound.BaseSound;
-	private warLoseSound!: Phaser.Sound.BaseSound;
-	private gameWinSound!: Phaser.Sound.BaseSound;
-	private gameLoseSound!: Phaser.Sound.BaseSound;
-	shuffleSound!: Phaser.Sound.BaseSound;
-	private restartSound!: Phaser.Sound.BaseSound;
-
+	private warText!: Phaser.GameObjects.Text;
+	private currentWarCardsText!: Phaser.GameObjects.Text;
+	private cardsIndex: number = 0;
+	sounds: Map<string, Sound>;
 	private autoPlayButton!: Phaser.GameObjects.Graphics;
 	private autoPlayButtonText!: Phaser.GameObjects.Text;
-	autoPlay: boolean = false;
-	private autoPlayInProgress: boolean = false;
-	private turnInProgress: boolean = false;
+	private autoPlay: boolean = false;
+	private sprites!: Phaser.GameObjects.Image[];
+	private inProgress: { turn: boolean, autoTurn: boolean, threeCards: boolean, autoThreeCards: boolean, finalCard: boolean } = {
+		turn: false,
+		autoTurn: false,
+		threeCards: false,
+		autoThreeCards: false,
+		finalCard: false,
+	};
 
 	constructor() {
 		super("MainScene");
+		this.sounds = new Map([
+			["click", new Sound(this, "click", "wav")],
+			["shuffle", new Sound(this, "shuffle")],
+			["battle-win", new Sound(this, "battle-win", "wav")],
+			["battle-lose", new Sound(this, "battle-lose")],
+			["war", new Sound(this, "war")],
+			["war-win", new Sound(this, "war-win")],
+			["war-lose", new Sound(this, "war-lose")],
+			["winner", new Sound(this, "winner")],
+			["loser", new Sound(this, "loser")],
+			["restart", new Sound(this, "restart", "wav")]
+		]);
 	}
 
 	preload() {
 		this.load.pack("pack", './Assets/game_pack_sd.json');
 		this.load.image('war', './Assets/bg/war.jpeg');
-		this.load.audio('battle-win', './Assets/sounds/battle-win.wav');
-		this.load.audio('battle-lose', './Assets/sounds/battle-lose.mp3');
-		this.load.audio('war', './Assets/sounds/war.mp3');
-		this.load.audio('war-win', './Assets/sounds/war-win.mp3');
-		this.load.audio('war-lose', './Assets/sounds/war-lose.mp3');
-		this.load.audio('winner', './Assets/sounds/winner.mp3');
-		this.load.audio('loser', './Assets/sounds/loser.mp3');
-		this.load.audio('click', './Assets/sounds/click.wav');
-		this.load.audio('shuffle', './Assets/sounds/shuffle-cards.mp3');
-		this.load.audio('restart', './Assets/sounds/restart.wav');
+		this.sounds.forEach((sound) => sound.load());
 	}
 
 	private editorCreate(): void {
+		this.centerX = this.cameras.main.width / 2;
+	 	this.centerY = this.cameras.main.height / 2;
 		// bg
-		this.background = this.add.image(408, 301, "bg").setScale(1.7).setVisible(true);
-		this.warBackground = this.add.image(408, 301, "war").setScale(1.7).setVisible(false);
+		this.background = this.add.image(this.centerX, this.centerY, "bg").setScale(1.7).setVisible(true);
+		this.warBackground = this.add.image(this.centerX, this.centerY, "war").setScale(1.7).setVisible(false);
 		// symbols_layer
 		const symbols_layer = this.add.layer();
 		// main_deck
-		this.deck = this.add.image(400, 300, "symbol_back", "back_red").setScale(1.1);
+		this.deck = this.add.image(this.centerX, this.centerY, "symbol_back", "back_red").setScale(1.1);
 		symbols_layer.add(this.deck);
-		this.dealButton = this.add.text(400, 300, 'Deal', { fontSize: '32px', color: '#fff' })
+		this.dealButton = this.add.text(this.centerX, this.centerY, 'Deal', { fontSize: '32px', color: '#fff' })
 			.setOrigin(0.5, 7.5)
 			.setInteractive()
 			.on('pointerdown', () => {
+				this.sounds.get("shuffle")?.play();
 				this.startGame();
 				this.drawAutoPlayButton();
 			}).on('pointerover', () => {
@@ -82,17 +88,17 @@ export default class MainScene extends Phaser.Scene {
 	}
 
 	create() {
+		// Sounds
+		this.sounds.forEach((sound) => sound.create());
 		this.editorCreate();
-		this.playerDeckSize = { x: 500, y: 450 };
-		this.aiDeckSize = { x: 300, y: 200 };
 		this.gameManager = new GameManager(this);
-		this.battleText = this.add.text(400, 200, '', { fontSize: '32px', color: '#fff' })
+		this.battleText = this.add.text(this.centerX, 200, '', { fontSize: '32px', color: '#fff' })
 			.setOrigin(0.5, 5.5)
 			.setVisible(false);
-		this.currentCardsText = this.add.text(580, 100, '', {
-			font: 'bold 18px Arial',
-			color: '#000000',
-		}).setVisible(false);
+		this.currentWarCardsText = this.add.text(580, 100, '', { font: 'bold 18px Arial', color: '#000000' }).setVisible(false);
+
+		this.playerDeckSize = { x: 500, y: 450 };
+		this.aiDeckSize = { x: 300, y: 200 };
 
 		this.playerDeck = this.add.image(this.playerDeckSize.x, this.playerDeckSize.y, "symbol_back", "back_red");
 		this.playerDeck.setScale(1.1);
@@ -103,18 +109,18 @@ export default class MainScene extends Phaser.Scene {
 		this.aiDeck.setVisible(false);
 
 		this.game.events.emit("GameCreated");
+	}
 
-		// Sounds
-		this.clickSound = this.sound.add('click');
-		this.battleWinSound = this.sound.add('battle-win');
-		this.battleLoseSound = this.sound.add('battle-lose');
-		this.warSound = this.sound.add('war');
-		this.warWinSound = this.sound.add('war-win');
-		this.warLoseSound = this.sound.add('war-lose');
-		this.gameWinSound = this.sound.add('winner');
-		this.gameLoseSound = this.sound.add('loser');
-		this.shuffleSound = this.sound.add('shuffle');
-		this.restartSound = this.sound.add('restart');
+	private enablePlayerInteraction(callback: () => void): void {
+		this.playerDeck.setInteractive()
+			.once('pointerdown', () => {
+				this.sounds.get("click")?.play();
+				callback();
+			}).on('pointerover', () => {
+				this.game.canvas.classList.add('pointer-cursor');
+			}).on('pointerout', () => {
+				this.game.canvas.classList.remove('pointer-cursor');
+			});
 	}
 
 	private startGame(): void {
@@ -128,46 +134,50 @@ export default class MainScene extends Phaser.Scene {
 		}
 	}
 
-	updateUI(message: string): void {
-		this.battleText.setText(message).setVisible(true);
-	}
-
-	private dealCardAnimation(startX: number, startY: number, frame: string, targetDeck: Phaser.GameObjects.Image, index: number): Promise<void> {
+	private dealCardAnimation(): Promise<void> {
 		return new Promise((resolve) => {
-			const card = this.add.image(startX, startY, "symbol_back", frame).setScale(1.1);
-			this.tweens.add({
-				targets: card,
-				x: targetDeck.x,
-				y: targetDeck.y,
-				duration: 300,
-				delay: index * 50,
-				onComplete: () => {
-					card.destroy();
-					resolve();
-				}
-			});
+			for (let i = 0; i < 26; i++) {
+				// const centerX = this.cameras.main.width / 2;
+				// const centerY = this.cameras.main.height / 2;
+				const playerCard = this.add.image(this.centerX, this.centerY, "symbol_back", "back_red").setScale(1.1);
+				this.tweens.add({
+					targets: playerCard,
+					x: this.playerDeckSize.x,
+					y: this.playerDeckSize.y,
+					duration: 300,
+					delay: i * 50,
+					onComplete: () => {
+						playerCard.destroy();
+					}
+				});
+				const aiCard = this.add.image(this.centerX, this.centerY, "symbol_back", "back_red").setScale(1.1);
+				this.tweens.add({
+					targets: aiCard,
+					x: this.aiDeckSize.x,
+					y: this.aiDeckSize.y,
+					duration: 300,
+					delay: i * 50,
+					onComplete: () => {
+						aiCard.destroy();
+					}
+				});
+			}
+			resolve();
 		});
 	}
 
 	async dealCards(): Promise<void> {
-		const centerX = this.cameras.main.width / 2;
-		const centerY = this.cameras.main.height / 2;
-		const animations: Promise<void>[] = [];
-		for (let i = 0; i < 26; i++) {
-			animations.push(this.dealCardAnimation(centerX, centerY, "back_red", this.playerDeck, i));
-			animations.push(this.dealCardAnimation(centerX, centerY, "back_red", this.aiDeck, i));
-		}
+		await this.dealCardAnimation();
 		this.deck.setVisible(false);
-		return Promise.all(animations).then(() => {
-			this.playerDeck.setVisible(true);
-			this.aiDeck.setVisible(true);
-			this.currentCardsText.setText(`AI: ${this.gameManager.aiPlayer.getDeckLength()} - You: ${this.gameManager.player.getDeckLength()}`).setVisible(true);
-		});
+		this.playerDeck.setVisible(true);
+		this.aiDeck.setVisible(true);
+		this.currentWarCardsText.setText(`AI: ${this.gameManager.aiPlayer.getDeckLength()} - You: ${this.gameManager.player.getDeckLength()}`).setVisible(true);
 	}
 
-	revealCard(card: Card, x: number, y: number): Promise<Phaser.GameObjects.Image> {
+	revealCard(card: Card, isPlayer: boolean = false): Promise<Phaser.GameObjects.Image> {
 		return new Promise((resolve) => {
-			const cardSprite = this.add.image(x, y, "symbols", `symbol_${card.getSymbol()}`).setScale(0.4);
+			const cardSprite = isPlayer ? this.add.image(this.playerDeckSize.x, this.playerDeckSize.y, "symbols", `symbol_${card.getSymbol()}`).setScale(0.4)
+				: this.add.image(this.aiDeckSize.x, this.aiDeckSize.y, "symbols", `symbol_${card.getSymbol()}`).setScale(0.4);
 			this.tweens.add({
 				targets: cardSprite,
 				scaleX: 0,
@@ -188,21 +198,23 @@ export default class MainScene extends Phaser.Scene {
 		});
 	}
 
-	moveCardsToWinner(winnerDeck: Phaser.GameObjects.Image, cards: Phaser.GameObjects.Image[]): Promise<void> {
+	moveCardsToWinner(winnerDeck: Phaser.GameObjects.Image, sprites: Phaser.GameObjects.Image[]): Promise<void> {
 		return new Promise((resolve) => {
 			let completedCount = 0;
-			cards.forEach((card) => {
+			sprites.forEach((sprite) => {
 				this.tweens.add({
-					targets: card,
+					targets: sprite,
 					x: winnerDeck.x,
 					y: winnerDeck.y,
 					duration: 400,
 					delay: 100,
 					onComplete: () => {
-						card.destroy();
+						if (sprite) {
+							sprite.destroy();
+						}
 						completedCount++;
-						if (completedCount === cards.length) {
-							this.currentCardsText.setText(`AI: ${this.gameManager.aiPlayer.getDeckLength()} - You: ${this.gameManager.player.getDeckLength()}`);
+						if (completedCount === sprites.length) {
+							this.currentWarCardsText.setText(`AI: ${this.gameManager.aiPlayer.getDeckLength()} - You: ${this.gameManager.player.getDeckLength()}`);
 							resolve();
 						}
 					}
@@ -211,22 +223,10 @@ export default class MainScene extends Phaser.Scene {
 		});
 	}
 
-	enablePlayerInteraction(callback: () => void): void {
-		this.playerDeck.setInteractive()
-			.once('pointerdown', () => {
-				this.clickSound.play();
-				callback();
-			}).on('pointerover', () => {
-				this.game.canvas.classList.add('pointer-cursor');
-			}).on('pointerout', () => {
-				this.game.canvas.classList.remove('pointer-cursor');
-			});
-	}
-
 	async autoPlayTurn(): Promise<void> {
-		if (this.autoPlayInProgress) return;
-		this.autoPlayInProgress = true;
-		this.playerDeck.disableInteractive();
+		if (this.inProgress.autoTurn) return;
+		this.inProgress.autoTurn = true;
+		this.playerDeck.removeAllListeners();
 		// Auto play loop
 		while (this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
 			await this.gameManager.playTurn();
@@ -235,34 +235,40 @@ export default class MainScene extends Phaser.Scene {
 		if (!this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
 			this.enablePlayerInteraction(() => this.playTurn());
 		}
-		this.autoPlayInProgress = false;
+		this.inProgress.autoTurn = false;
 	}
 
 	async playTurn(): Promise<void> {
-		if (this.turnInProgress) return;
-		this.turnInProgress = true;
+		if (this.inProgress.turn) return;
+		this.inProgress.turn = true;
 		this.battleText.setVisible(false);
-		this.playerDeck.disableInteractive();
+		this.playerDeck.removeAllListeners();
 		if (this.gameManager.getState() === GameState.BATTLE) {
 			await this.gameManager.playTurn();
 		}
 		// Auto play off
 		if (!this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
 			this.enablePlayerInteraction(() => this.playTurn());
+
 		}
 		// Auto play on
 		if (this.autoPlay && this.gameManager.getState() === GameState.BATTLE) {
 			await this.autoPlayTurn();
 		}
-		this.turnInProgress = false;
+		this.inProgress.turn = false;
 	}
 
-	toggleBackground(isWar: boolean): void {
+
+	updateUI(message: string): void {
+		this.battleText.setText(message).setVisible(true);
+	}
+
+	private toggleBackground(isWar: boolean): void {
 		this.background.setVisible(!isWar);
 		this.warBackground.setVisible(isWar);
 	}
 
-	private putBackCard(i: number, isPlayer: boolean = false): Promise<Phaser.GameObjects.Image> {
+	private backCardAnimation(i: number, isPlayer: boolean = false): Promise<Phaser.GameObjects.Image> {
 		return new Promise((resolve) => {
 			const card = isPlayer ? this.add.image(this.playerDeckSize.x, this.playerDeckSize.y - (i * 10), 'symbol_back', 'back_red').setScale(1.1)
 				: this.add.image(this.aiDeckSize.x, this.aiDeckSize.y - (i * 10), 'symbol_back', 'back_red').setScale(1.1);
@@ -276,65 +282,97 @@ export default class MainScene extends Phaser.Scene {
 		});
 	}
 
-	showWarAnimation(warCards: Card[], sprites: Phaser.GameObjects.Image[]): Promise<Phaser.GameObjects.Image[]> {
-		return new Promise(async (resolve) => {
-			this.warSound.play()
-			this.warText = this.add.text(412, 550, '', { font: '18px Arial', color: '#ff0' }).setVisible(false).setOrigin(0.5);
-			this.updateUI("War!");
-			this.toggleBackground(true);
-			// Player cards
-			for (let i = 0; i < 3; i++) {
-				await new Promise<void>((res) => {
-					let isChecking = false;
-					if (this.autoPlay) {
-						this.warText.setVisible(false);
-						this.putBackCard(i, true).then(sprite => {
-							sprites.push(sprite);
-							res();
-						});
-					} else {
-						const checkAutoPlay = () => {
-							if (isChecking) return;
-							isChecking = true;
-							if (this.autoPlay) {
-								this.warText.setVisible(false);
-								this.playerDeck.disableInteractive();
-								this.putBackCard(i, true).then(sprite => {
-									sprites.push(sprite);
-									res();
-								});
-							} else {
-								this.warText.setText(`Add ${3 - i} hidden cards`).setVisible(true);
-								this.enablePlayerInteraction(async () => {
-									const sprite = await this.putBackCard(i, true);
-									sprites.push(sprite);
-									res();
-								});
-							}
-							isChecking = false;
-						};
-
-						checkAutoPlay();
-						// Interval to check for autoPlay changes, every 100ms
-						const intervalId = setInterval(() => {
-							if (this.autoPlay && !isChecking) {
-								clearInterval(intervalId);
-								checkAutoPlay();
-							}
-						}, 100);
-					}
-				});
-			}
+	private async addPlayerBackCard() {
+		const sprite = await this.backCardAnimation(this.cardsIndex, true);
+		this.sprites.push(sprite);
+		++this.cardsIndex;
+		if (this.cardsIndex === 3) {
 			this.warText.setVisible(false);
-			// AI cards
-			this.playerDeck.disableInteractive();
-			for (let i = 0; i < 3; i++) {
-				const sprite = await this.putBackCard(i);
-				sprites.push(sprite);
-			}
-			await this.gameManager.WarBattle(warCards, sprites);
-			resolve(sprites);
-		});
+			await this.AIThreeCards();
+		}
+	}
+
+	private async playerThreeCards(): Promise<void> {
+		if (this.inProgress.autoThreeCards) return;
+		this.inProgress.autoThreeCards = true;
+		this.playerDeck.removeAllListeners();
+		this.warText.setVisible(false);
+		// Auto play loop
+		while (this.autoPlay && this.gameManager.getState() === GameState.THREE_CARDS && this.cardsIndex < 3) {
+			await this.addPlayerBackCard();
+		}
+		// Auto play off
+		if (!this.autoPlay && this.gameManager.getState() === GameState.THREE_CARDS && this.cardsIndex < 3) {
+			this.warText.setText(`Add ${3 - this.cardsIndex} hidden cards`).setVisible(true);
+			this.enablePlayerInteraction(() => this.offThreeCards());
+		}
+		this.inProgress.autoThreeCards = false;
+	}
+
+	private async offThreeCards(): Promise<void> {
+		if (this.inProgress.threeCards) return;
+		this.inProgress.threeCards = true;
+		this.warText.setVisible(false);
+		this.battleText.setVisible(false);
+		this.playerDeck.removeAllListeners();
+		if (this.gameManager.getState() === GameState.THREE_CARDS && this.cardsIndex < 3) {
+			await this.addPlayerBackCard();
+		}
+		// Auto play off
+		if (!this.autoPlay && this.gameManager.getState() === GameState.THREE_CARDS && this.cardsIndex < 3) {
+			this.warText.setText(`Add ${3 - this.cardsIndex} hidden cards`).setVisible(true);
+			this.enablePlayerInteraction(() => this.offThreeCards());
+		}
+		// Auto play on
+		if (this.autoPlay && this.gameManager.getState() === GameState.THREE_CARDS && this.cardsIndex < 3) {
+			await this.playerThreeCards();
+		}
+		this.inProgress.threeCards = false;
+	}
+
+	private async AIThreeCards(): Promise<void> {
+		this.gameManager.state = GameState.WAR;
+		this.warText.setVisible(false);
+		this.playerDeck.removeAllListeners();
+		// AI cards
+		for (let i = 0; i < 3; i++) {
+			const sprite = await this.backCardAnimation(i);
+			this.sprites.push(sprite);
+		}
+		this.gameManager.state = GameState.FINAL_CARD;
+		await this.finalCard();
+	}
+
+	private async finalCard(): Promise<void> {
+		if (this.inProgress.finalCard) return;
+		this.inProgress.finalCard = true;
+		this.playerDeck.removeAllListeners();
+		// Auto play on
+		if (this.autoPlay) {
+			this.cardsIndex++;
+			this.warText.setVisible(false);
+			await this.gameManager.revealFinalWarCards(this.sprites);
+			// Auto play off
+		} else {
+			this.warText.setText("Add final card").setVisible(true);
+			this.enablePlayerInteraction(async () => {
+				this.cardsIndex++;
+				this.warText.setVisible(false);
+				await this.gameManager.revealFinalWarCards(this.sprites);
+			});
+		}
+		this.inProgress.finalCard = false;
+	}
+
+	async showWarAnimation(oldSprites: Phaser.GameObjects.Image[]): Promise<void> {
+		this.sounds.get("war")?.play();
+		this.warText = this.add.text(412, 550, '', { font: '18px Arial', color: '#ff0' }).setVisible(false).setOrigin(0.5);
+		this.updateUI("War!");
+		this.toggleBackground(true);
+		this.sprites = oldSprites;
+		this.gameManager.state = GameState.THREE_CARDS;
+		this.cardsIndex = 0;
+		await this.playerThreeCards();
 	}
 
 	showWarResult(winner: "player" | "ai"): void {
@@ -351,30 +389,40 @@ export default class MainScene extends Phaser.Scene {
 		const phrases = winner === "player" ? playerWinPhrases : aiWinPhrases;
 		const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
 		this.updateUI(randomPhrase);
-		winner === "player" ? this.warWinSound.play() : this.warLoseSound.play();;
+		winner === "player" ? this.sounds.get("war-win")?.play() : this.sounds.get("war-lose")?.play();
+	}
+
+	backFromWar() {
+		this.toggleBackground(false);
+		if (!this.autoPlay) {
+			this.enablePlayerInteraction(() => {
+				this.playTurn();
+			});
+		} else {
+			this.autoPlayTurn();
+		}
 	}
 
 	private drawAutoPlayButton(): void {
 		this.autoPlayButton = this.add.graphics({ x: 70, y: 530 });
-		this.autoPlayButton.fillStyle(0x00ff00, 1);
+		this.autoPlayButton.fillStyle(0xA9A9A9, 1);
 		this.autoPlayButton.fillCircle(0, 0, 40);
 		this.autoPlayButton.setInteractive(new Phaser.Geom.Circle(0, 0, 40), Phaser.Geom.Circle.Contains)
 			.on('pointerdown', () => {
-				this.clickSound.play();
+				this.sounds.get("click")?.play();
 				this.toggleAutoPlay();
 			}).on('pointerover', () => {
 				this.game.canvas.classList.add('pointer-cursor');
 			}).on('pointerout', () => {
 				this.game.canvas.classList.remove('pointer-cursor');
 			});
-		this.autoPlayButtonText = this.add.text(70, 530, 'AUTO-PLAY', { font: '14px Arial', color: '#000000' }).setOrigin(0.5);
-		this.updateAutoPlayButton();
+		this.autoPlayButtonText = this.add.text(70, 530, 'AUTO PLAY', { font: '14px Arial', color: '#000000' }).setOrigin(0.5);
 	}
 
 	private updateAutoPlayButton(): void {
 		this.autoPlayButton.clear();
 		if (this.autoPlay) {
-			this.autoPlayButton.fillStyle(0x00ff00, 1);  // Red
+			this.autoPlayButton.fillStyle(0x00ff00, 1);  // Green
 			this.autoPlayButton.fillCircle(0, 0, 40);
 			this.autoPlayButtonText.setText('TURN OFF');
 		} else {
@@ -388,12 +436,20 @@ export default class MainScene extends Phaser.Scene {
 		this.autoPlay = !this.autoPlay;
 		this.updateAutoPlayButton();
 		// Only if it's not in the middle of other process- turn the button
-		if (!this.turnInProgress && !this.autoPlayInProgress && this.gameManager.getState() === GameState.BATTLE) {
+		if (this.gameManager.getState() === GameState.BATTLE && !this.inProgress.turn && !this.inProgress.autoTurn) {
 			if (this.autoPlay) {
 				this.autoPlayTurn();
 			} else if (!this.autoPlay) {
 				this.enablePlayerInteraction(() => this.playTurn());
 			}
+		} else if (this.gameManager.getState() === GameState.THREE_CARDS && !this.inProgress.threeCards && !this.inProgress.autoThreeCards && this.cardsIndex < 3) {
+			if (this.autoPlay) {
+				this.playerThreeCards();
+			} else if (!this.autoPlay) {
+				this.enablePlayerInteraction(() => this.offThreeCards());
+			}
+		} else if (this.gameManager.getState() === GameState.FINAL_CARD && !this.inProgress.finalCard && this.cardsIndex < 4) {
+			this.finalCard();
 		}
 	}
 
@@ -401,21 +457,26 @@ export default class MainScene extends Phaser.Scene {
 		this.autoPlay = false;
 		this.autoPlayButton.disableInteractive()
 		this.playerDeck.disableInteractive();
-		this.currentCardsText.setText(`AI: ${this.gameManager.aiPlayer.getDeckLength()} - You: ${this.gameManager.player.getDeckLength()}`);
-		const centerX = this.cameras.main.width / 2;
-		const centerY = this.cameras.main.height / 2;
+		this.currentWarCardsText.setText(`AI: ${this.gameManager.aiPlayer.getDeckLength()} - You: ${this.gameManager.player.getDeckLength()}`);
+		if (isTie || playerWon) {
+			this.sounds.get("winner")?.play();
+		} else {
+			this.sounds.get("loser")?.play();
+		}
+		// const centerX = this.cameras.main.width / 2;
+		// const centerY = this.cameras.main.height / 2;
 		let message;
 		if (isTie) {
 			message = "It's A Tie!";
 		} else {
 			message = playerWon ? 'You Won!' : 'You Lost :-(';
 		}
-		const text = this.add.text(centerX, centerY, message, { fontSize: '60px', color: '#0ff' }).setOrigin(0.5); // Cyan
-		const replayButton = this.add.text(centerX, centerY + 45, 'Play Again', { fontSize: '32px', color: '#ff0' }) // Yellow
+		const text = this.add.text(this.centerX, this.centerY, message, { fontSize: '60px', color: '#0ff' }).setOrigin(0.5); // Cyan
+		const replayButton = this.add.text(this.centerX, this.centerY + 45, 'Play Again', { fontSize: '32px', color: '#ff0' }) // Yellow
 			.setOrigin(0.5)
 			.setInteractive()
 			.on('pointerdown', () => {
-				this.restartSound.play();
+				this.sounds.get("restart")?.play();
 				this.scene.restart();
 			}).on('pointerover', () => {
 				this.game.canvas.classList.add('pointer-cursor');
@@ -431,11 +492,6 @@ export default class MainScene extends Phaser.Scene {
 			repeat: -1,
 			duration: 800
 		});
-		if (isTie || playerWon) {
-			this.gameWinSound.play();
-		} else {
-			this.gameLoseSound.play();
-		}
 	}
 }
 /* END OF COMPILED CODE */

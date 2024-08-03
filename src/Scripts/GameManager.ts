@@ -7,6 +7,8 @@ export enum GameState {
     DEALING,
     BATTLE,
     WAR,
+    THREE_CARDS,
+    FINAL_CARD,
     GAME_OVER
 }
 
@@ -18,14 +20,16 @@ export class GameManager {
     private deck: Deck;
     player: Player;
     aiPlayer: Player;
-    private state: GameState;
+    state: GameState;
+    private warCards: Card[];
 
     constructor(i_Scene: MainScene) {
         this.scene = i_Scene;
         this.deck = new Deck(this.scene);
-        this.player = new Player(false, this.scene.playerDeck);
-        this.aiPlayer = new Player(true, this.scene.aiDeck);
+        this.player = new Player();
+        this.aiPlayer = new Player();
         this.state = GameState.DEALING;
+        this.warCards = []
     }
 
     private dealCards(): void {
@@ -35,16 +39,12 @@ export class GameManager {
         }
     }
 
-    startGame(): Promise<void> {
-        return new Promise(async (resolve) => {
-            this.scene.shuffleSound.play();
-            this.deck.shuffle();
-            this.dealCards();
-            await this.scene.dealCards();
-            this.state = GameState.BATTLE;
-            this.scene.updateUI("Battle!");
-            resolve();
-        });
+    async startGame(): Promise<void> {
+        this.deck.shuffle();
+        this.dealCards();
+        await this.scene.dealCards();
+        this.state = GameState.BATTLE;
+        this.scene.updateUI("Battle!");
     }
 
     getState(): GameState {
@@ -55,54 +55,48 @@ export class GameManager {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
-    playTurn(): Promise<void> {
-        return new Promise(async (resolve) => {
-            if (this.state !== GameState.BATTLE) {
-                resolve();
-                return;
-            }
-            const playerCard = this.player.playCard();
-            const aiCard = this.aiPlayer.playCard();
-            // If one of the players has no cards
-            if (!playerCard || !aiCard) {
-                await this.endGame();
-                resolve();
-                return;
-            }
-            const playerCardSprite = await this.scene.revealCard(playerCard, this.scene.playerDeckSize.x, this.scene.playerDeckSize.y);
-            const aiCardSprite = await this.scene.revealCard(aiCard, this.scene.aiDeckSize.x, this.scene.aiDeckSize.y);
-            await this.delay(500);
-            const playerRank = Math.floor(playerCard.getSymbol() / 4);
-            const aiRank = Math.floor(aiCard.getSymbol() / 4);
-            // Player wins
-            if (playerRank > aiRank) {
-                this.scene.updateUI("You won the battle!");
-                this.scene.battleWinSound.play();
-                this.player.addCards([playerCard, aiCard]);
-                await this.scene.moveCardsToWinner(this.scene.playerDeck, [playerCardSprite, aiCardSprite]);
-                resolve();
-            }
-            // AI wins
-            else if (playerRank < aiRank) {
-                this.scene.updateUI("AI won the battle!");
-                this.scene.battleLoseSound.play();
-                this.aiPlayer.addCards([playerCard, aiCard]);
-                await this.scene.moveCardsToWinner(this.scene.aiDeck, [playerCardSprite, aiCardSprite]);
-                resolve();
-            }
-            // War
-            else {
-                await this.startWar([playerCard, aiCard], [playerCardSprite, aiCardSprite]);
-                resolve();
-            }
-        });
+    async playTurn(): Promise<void> {
+        if (this.state !== GameState.BATTLE) {
+            return;
+        }
+        const playerCard = this.player.playCard();
+        const aiCard = this.aiPlayer.playCard();
+        // If one of the players has no cards
+        if (!playerCard || !aiCard) {
+            this.endGame();
+            return;
+        }
+        const playerCardSprite = await this.scene.revealCard(playerCard, true);
+        const aiCardSprite = await this.scene.revealCard(aiCard);
+        await this.delay(500);
+        const playerRank = Math.floor(playerCard.getSymbol() / 4);
+        const aiRank = Math.floor(aiCard.getSymbol() / 4);
+        // Player wins
+        if (playerRank > aiRank) {
+            this.scene.updateUI("You won the battle!");
+            this.scene.sounds.get("battle-win")?.play();
+            this.player.addCards([playerCard, aiCard]);
+            await this.scene.moveCardsToWinner(this.scene.playerDeck, [playerCardSprite, aiCardSprite]);
+        }
+        // AI wins
+        else if (playerRank < aiRank) {
+            this.scene.updateUI("AI won the battle!");
+            this.scene.sounds.get("battle-lose")?.play();
+            this.aiPlayer.addCards([playerCard, aiCard]);
+            await this.scene.moveCardsToWinner(this.scene.aiDeck, [playerCardSprite, aiCardSprite]);
+        }
+        // War
+        else {
+            this.warCards.push(playerCard, aiCard);
+            await this.startWar([playerCardSprite, aiCardSprite]);
+        }
     }
 
-    private async startWar(warCards: Card[], sprites: Phaser.GameObjects.Image[]): Promise<void> {
+    private async startWar(sprites: Phaser.GameObjects.Image[]): Promise<void> {
         this.state = GameState.WAR;
         if (this.player.getDeckLength() < 4 || this.aiPlayer.getDeckLength() < 4) {
             this.scene.updateUI("Not enough cards for a war")
-            await this.endGame();
+            this.endGame();
             return;
         }
         // Each player adds 3 hidden cards
@@ -110,99 +104,63 @@ export class GameManager {
             const playerCard = this.player.playCard();
             const aiCard = this.aiPlayer.playCard();
             if (playerCard && aiCard) {
-                warCards.push(playerCard, aiCard);
+                this.warCards.push(playerCard, aiCard);
             }
         }
-        await this.scene.showWarAnimation(warCards, sprites);
+        await this.scene.showWarAnimation(sprites);
     }
 
-    WarBattle(warCards: Card[], sprites: Phaser.GameObjects.Image[]): Promise<void> {
-        return new Promise<void>(async (resolve) => {
-            let isRevealing = false;
-            const autoRevealCards = async () => {
-                this.scene.warText.setVisible(false);
-                if (isRevealing) return;
-                isRevealing = true;
-                this.scene.playerDeck.disableInteractive();
-                await this.revealFinalWarCards(warCards, sprites);
-                resolve();
-            };
-            const checkAutoPlay = async () => {
-                if (this.scene.autoPlay) {
-                    await autoRevealCards();
-                } else {
-                    this.scene.playerDeck.disableInteractive();
-                    this.scene.warText.setText("Add final card").setVisible(true);
-                    this.scene.enablePlayerInteraction(async () => {
-                        await autoRevealCards();
-                    });
-                }
-            };
-            await checkAutoPlay();
-            // Interval to check for autoPlay changes, every 100ms
-            const intervalId = setInterval(async () => {
-                if (this.scene.autoPlay && !isRevealing) {
-                    clearInterval(intervalId);
-                    sprites.forEach(sprite => sprite.destroy());
-                    await checkAutoPlay();
-                }
-            }, 100);
-        });
-    }
-
-    private async revealFinalWarCards(warCards: Card[], sprites: Phaser.GameObjects.Image[]): Promise<void> {
+    async revealFinalWarCards(sprites: Phaser.GameObjects.Image[]): Promise<void> {
         this.scene.playerDeck.disableInteractive();
         // Add one more card each for the final battle
         const playerFinalCard = this.player.playCard();
         const aiFinalCard = this.aiPlayer.playCard();
         if (playerFinalCard && aiFinalCard) {
-            warCards.push(playerFinalCard, aiFinalCard);
+            this.warCards.push(playerFinalCard, aiFinalCard);
             // Reveal the final cards
-            const playerCardSprite = await this.scene.revealCard(playerFinalCard, this.scene.playerDeckSize.x, this.scene.playerDeckSize.y);
-            const aiCardSprite = await this.scene.revealCard(aiFinalCard, this.scene.aiDeckSize.x, this.scene.aiDeckSize.y);
+            const playerCardSprite = await this.scene.revealCard(playerFinalCard, true);
+            const aiCardSprite = await this.scene.revealCard(aiFinalCard);
             sprites.push(playerCardSprite, aiCardSprite);
             await this.delay(500);
             // Determine the winner
             const playerRank = Math.floor(playerFinalCard.getSymbol() / 4);
             const aiRank = Math.floor(aiFinalCard.getSymbol() / 4);
             if (playerRank > aiRank) {
-                this.player.addCards(warCards);
+                this.player.addCards(this.warCards);
                 await this.scene.moveCardsToWinner(this.scene.playerDeck, sprites);
                 this.scene.showWarResult("player");
             } else if (playerRank < aiRank) {
-                this.aiPlayer.addCards(warCards);
+                this.aiPlayer.addCards(this.warCards);
                 await this.scene.moveCardsToWinner(this.scene.aiDeck, sprites);
                 this.scene.showWarResult("ai");
             } else {
                 // If it's tie again, start another war
-                await this.startWar(warCards, sprites);
+                await this.startWar(sprites);
                 return;
             }
         } else {
             // If either player runs out of cards during war, end the game
-            await this.endGame();
+            this.endGame();
             return;
         }
-        const gameOver = await this.checkGameOver();
+        const gameOver = this.checkGameOver();
         if (!gameOver) {
-            this.scene.toggleBackground(false);
             this.state = GameState.BATTLE;
+            this.warCards = [];
+            this.scene.backFromWar();
         }
     }
 
-    private checkGameOver(): Promise<boolean> {
-        return new Promise(async (resolve) => {
-            if (this.player.getDeckLength() !== 0 && this.aiPlayer.getDeckLength() !== 0) {
-                resolve(false);
-                return;
-            } else {
-                await this.endGame();
-                resolve(true);
-            }
-        })
+    private checkGameOver(): boolean {
+        if (this.player.getDeckLength() !== 0 && this.aiPlayer.getDeckLength() !== 0) {
+            return false;
+        } else {
+            this.endGame();
+            return true;
+        }
     }
 
-    private async endGame(): Promise<void> {
+    private endGame(): void {
         this.state = GameState.GAME_OVER;
         // If it's war and both players don't have enough cards and have the same amount, or it's 0-0
         const isTie = this.player.getDeckLength() == this.aiPlayer.getDeckLength();

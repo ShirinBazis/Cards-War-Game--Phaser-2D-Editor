@@ -2,8 +2,8 @@ export class Card {
     private symbol: number;
     private sprite: Phaser.GameObjects.Image;
 
-    constructor(rank: number, sprite: Phaser.GameObjects.Image) {
-        this.symbol = rank;
+    constructor(symbol: number, sprite: Phaser.GameObjects.Image) {
+        this.symbol = symbol;
         this.sprite = sprite;
     }
 
