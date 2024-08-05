@@ -137,8 +137,6 @@ export default class MainScene extends Phaser.Scene {
 	private dealCardAnimation(): Promise<void> {
 		return new Promise((resolve) => {
 			for (let i = 0; i < 26; i++) {
-				// const centerX = this.cameras.main.width / 2;
-				// const centerY = this.cameras.main.height / 2;
 				const playerCard = this.add.image(this.centerX, this.centerY, "symbol_back", "back_red").setScale(1.1);
 				this.tweens.add({
 					targets: playerCard,
@@ -463,8 +461,6 @@ export default class MainScene extends Phaser.Scene {
 		} else {
 			this.sounds.get("loser")?.play();
 		}
-		// const centerX = this.cameras.main.width / 2;
-		// const centerY = this.cameras.main.height / 2;
 		let message;
 		if (isTie) {
 			message = "It's A Tie!";
